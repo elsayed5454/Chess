@@ -5,10 +5,12 @@
 #include <windows.h>
 
 char board[8][8] = {{'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}};
+char p1_safe[8][2], p2_safe[8][2];
+int p1_safe_c = 0, p2_safe_c = 0;
 char p1_dead[16], p2_dead[16];
 int p1_dead_c = 0, p2_dead_c = 0;
-char swap;
-int i, j, k, p_turn = 0, i_king_p1 = 7, j_king_p1 = 4, i_king_p2 = 0, j_king_p2 = 4;
+char tmp1, tmp2;
+int i, j, k, p_turn = 0, i_king_p1 = 7, j_king_p1 = 4, i_king_p2 = 0, j_king_p2 = 4, i_threat, j_threat;
 COORD coord = {0, 0}; // sets coordinates to 0,0
 
 void gotoxy (int x, int y);
@@ -23,8 +25,8 @@ void bishop(int i1, int j1, int i2, int j2);
 void queen(int i1, int j1, int i2, int j2);
 void king(int i1, int j1, int i2, int j2);
 int check_road(int i1, int j1, int i2, int j2);
-int check_check(int p_turn);
-
+int check_check(int p_turn, int i2, int j2);
+int safe_moves(int p_turn);
 
 int main()
 {
@@ -109,7 +111,7 @@ void check_move(char arr[8][8])
         print(board);
         if (p_turn % 2 == 0)
         {
-            if (!check_check(p_turn))
+            if (!check_check(p_turn, i_king_p1, j_king_p1))
                 printf("Your king is in check, choose your move wisely\n");
             do
             {
@@ -121,7 +123,7 @@ void check_move(char arr[8][8])
         }
         else
         {
-            if (!check_check(p_turn))
+            if (!check_check(p_turn, i_king_p2, j_king_p2))
                 printf("Your king is in check, choose your move wisely\n");
             do
             {
@@ -668,129 +670,318 @@ int check_road(int i1, int j1, int i2, int j2)
     return 1;
 }
 
-int check_check(int p_turn)
+int check_check(int p_turn, int i_check, int j_check)
 {
     // check player 1 king in check
     if (p_turn % 2 == 0)
     {
-        i = i_king_p1, j = j_king_p1;
+        i = i_check, j = j_check;
         // check for pawns in front of the king
-        if (board[i - 1][j + 1] == 'P' || board[i - 1][j - 1] == 'P')
+        if (board[i - 1][j + 1] == 'P')
+        {
+            i_threat = i, j_threat = j;
             return 0;
+        }
+        else if (board[i - 1][j - 1] == 'P')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
         // check for knights around the king
-        if (board[i - 2][j + 1] == 'N' || board[i - 2][j - 1] == 'N' || board[i + 2][j + 1] == 'N' || board[i + 2][j - 1] == 'N' ||
-            board[i + 1][j + 2] == 'N' || board[i - 1][j + 2] == 'N' || board[i + 1][j - 2] == 'N' || board[i + 1][j - 2] == 'N')
+        if (board[i - 2][j + 1] == 'N')
+        {
+            i_threat = i, j_threat = j;
             return 0;
+        }
+        else if (board[i - 2][j - 1] == 'N')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i + 2][j + 1] == 'N')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i + 2][j - 1] == 'N')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i + 1][j + 2] == 'N')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i - 1][j + 2] == 'N')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i + 1][j - 2] == 'N')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i - 1][j - 2] == 'N')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
         // check down the king
-        for (i = i_king_p1 + 1, j = j_king_p1; i < 8; i++)
+        for (i = i_check + 1, j = j_check; i < 8; i++)
             if (islower(board[i][j]))
                 break;
             else if (board[i][j] == 'R' || board[i][j] == 'Q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check up the king
-        for (i = i_king_p1 - 1, j = j_king_p1; i >= 0; i--)
+        for (i = i_check - 1, j = j_check; i >= 0; i--)
             if (islower(board[i][j]))
                 break;
             else if (board[i][j] == 'R' || board[i][j] == 'Q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check right the king
-        for (i = i_king_p1, j = j_king_p1 + 1; j < 8; j++)
+        for (i = i_check, j = j_check + 1; j < 8; j++)
             if (islower(board[i][j]))
                 break;
             else if (board[i][j] == 'R' || board[i][j] == 'Q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check left the king
-        for (i = i_king_p1, j = j_king_p1 - 1; j >= 0; j--)
+        for (i = i_check, j = j_check - 1; j >= 0; j--)
             if (islower(board[i][j]))
                 break;
             else if (board[i][j] == 'R' || board[i][j] == 'Q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check upper right the king
-        for (i = i_king_p1 - 1, j = j_king_p1 + 1; i >= 0 && j < 8; i--, j++)
+        for (i = i_check - 1, j = j_check + 1; i >= 0 && j < 8; i--, j++)
             if (islower(board[i][j]))
                 break;
             else if (board[i][j] == 'B' || board[i][j] == 'Q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check lower left the king
-        for (i = i_king_p1 + 1, j = j_king_p1 - 1; i < 8 && j >= 0; i++, j--)
+        for (i = i_check + 1, j = j_check - 1; i < 8 && j >= 0; i++, j--)
             if (islower(board[i][j]))
                 break;
             else if (board[i][j] == 'B' || board[i][j] == 'Q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check upper left the king
-        for (i = i_king_p1 - 1, j = j_king_p1 - 1; i >= 0 && j >= 0; i--, j--)
+        for (i = i_check - 1, j = j_check - 1; i >= 0 && j >= 0; i--, j--)
             if (islower(board[i][j]))
                 break;
             else if (board[i][j] == 'B' || board[i][j] == 'Q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check lower right the king
-        for (i = i_king_p1 + 1, j = j_king_p1 + 1; i < 8 && j < 8; i++, j++)
+        for (i = i_check + 1, j = j_check + 1; i < 8 && j < 8; i++, j++)
             if (islower(board[i][j]))
                 break;
             else if (board[i][j] == 'B' || board[i][j] == 'Q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         return 1;
     }
     // check player 2 king in check
     else if (p_turn % 2 == 1)
     {
-        i = i_king_p2, j = j_king_p2;
+        i = i_check, j = j_check;
         // check for pawns in front of the king
-        if (board[i + 1][j + 1] == 'p' || board[i + 1][j - 1] == 'p')
+        if (board[i - 1][j + 1] == 'p')
+        {
+            i_threat = i, j_threat = j;
             return 0;
+        }
+        else if (board[i - 1][j - 1] == 'p')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
         // check for knights around the king
-        if (board[i - 2][j + 1] == 'n' || board[i - 2][j - 1] == 'n' || board[i + 2][j + 1] == 'n' || board[i + 2][j - 1] == 'n' ||
-            board[i + 1][j + 2] == 'n' || board[i - 1][j + 2] == 'n' || board[i + 1][j - 2] == 'n' || board[i + 1][j - 2] == 'n')
+        if (board[i - 2][j + 1] == 'n')
+        {
+            i_threat = i, j_threat = j;
             return 0;
+        }
+        else if (board[i - 2][j - 1] == 'n')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i + 2][j + 1] == 'n')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i + 2][j - 1] == 'n')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i + 1][j + 2] == 'n')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i - 1][j + 2] == 'n')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i + 1][j - 2] == 'n')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
+        else if (board[i - 1][j - 2] == 'n')
+        {
+            i_threat = i, j_threat = j;
+            return 0;
+        }
         // check down the king
-        for (i = i_king_p2 + 1, j = j_king_p2; i < 8; i++)
+        for (i = i_check + 1, j = j_check; i < 8; i++)
             if (isupper(board[i][j]))
                 break;
             else if (board[i][j] == 'r' || board[i][j] == 'q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check up the king
-        for (i = i_king_p2 - 1, j = j_king_p2; i >= 0; i--)
+        for (i = i_check - 1, j = j_check; i >= 0; i--)
             if (isupper(board[i][j]))
                 break;
             else if (board[i][j] == 'r' || board[i][j] == 'q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check right the king
-        for (i = i_king_p2, j = j_king_p2 + 1; j < 8; j++)
+        for (i = i_check, j = j_check + 1; j < 8; j++)
             if (isupper(board[i][j]))
                 break;
             else if (board[i][j] == 'r' || board[i][j] == 'q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check left the king
-        for (i = i_king_p2, j = j_king_p2 - 1; j >= 0; j--)
+        for (i = i_check, j = j_check - 1; j >= 0; j--)
             if (isupper(board[i][j]))
                 break;
             else if (board[i][j] == 'r' || board[i][j] == 'q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check upper right the king
-        for (i = i_king_p2 - 1, j = j_king_p2 + 1; i >= 0 && j < 8; i--, j++)
+        for (i = i_check - 1, j = j_check + 1; i >= 0 && j < 8; i--, j++)
             if (isupper(board[i][j]))
                 break;
             else if (board[i][j] == 'b' || board[i][j] == 'q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check lower left the king
-        for (i = i_king_p2 + 1, j = j_king_p2 - 1; i < 8 && j >= 0; i++, j--)
+        for (i = i_check + 1, j = j_check - 1; i < 8 && j >= 0; i++, j--)
             if (isupper(board[i][j]))
                 break;
             else if (board[i][j] == 'b' || board[i][j] == 'q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check upper left the king
-        for (i = i_king_p2 - 1, j = j_king_p2 - 1; i >= 0 && j >= 0; i--, j--)
+        for (i = i_check - 1, j = j_check - 1; i >= 0 && j >= 0; i--, j--)
             if (islower(board[i][j]))
                 break;
             else if (board[i][j] == 'b' || board[i][j] == 'q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         // check lower right the king
-        for (i = i_king_p2 + 1, j = j_king_p2 + 1; i < 8 && j < 8; i++, j++)
+        for (i = i_check + 1, j = j_check + 1; i < 8 && j < 8; i++, j++)
             if (isupper(board[i][j]))
                 break;
             else if (board[i][j] == 'b' || board[i][j] == 'q')
+            {
+                i_threat = i, j_threat = j;
                 return 0;
+            }
         return 1;
     }
     return 1;
+}
+
+int safe_moves(int p_turn)
+{
+    // check for safe places around king of player 1
+    if (p_turn % 2 == 0)
+    {
+        i = i_king_p1, j_king_p1;
+        for (i--; i < i_king_p1 + 2; i++)
+            for (j--; j < j_king_p1 + 2; j++)
+                if (board[i][j] == 'k')
+                    continue;
+                else if (islower(board[i][j]))
+                    continue;
+                else if (!check_check(p_turn, i, j))
+                {
+                    tmp1 = i, tmp2 = j;
+                    p1_safe[p1_safe_c][0] = tmp1;
+                    p1_safe[p1_safe_c++][1] = tmp2;
+                }
+        if (!p1_safe_c)
+            return 0;
+        else
+            return 1;
+    }
+    // check for safe places around king of player 2
+    else if (p_turn % 2 == 1)
+    {
+        i = i_king_p2, j_king_p2;
+        for (i--; i < i_king_p2 + 2; i++)
+            for (j--; j < j_king_p2 + 2; j++)
+                if (board[i][j] == 'K')
+                    continue;
+                else if (isupper(board[i][j]))
+                    continue;
+                else if (!check_check(p_turn, i, j))
+                {
+                    tmp1 = i, tmp2 = j;
+                    p2_safe[p2_safe_c][0] = tmp1;
+                    p2_safe[p2_safe_c++][1] = tmp2;
+                }
+        if (!p2_safe_c)
+            return 0;
+        else
+            return 1;
+    }
+}
+
+int rescue_king(int p_turn)
+{
+
 }
