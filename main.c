@@ -678,7 +678,9 @@ int check_check(int p_turn)
         if (board[i - 1][j + 1] == 'P' || board[i - 1][j - 1] == 'P')
             return 0;
         // check for knights around the king
-
+        if (board[i - 2][j + 1] == 'N' || board[i - 2][j - 1] == 'N' || board[i + 2][j + 1] == 'N' || board[i + 2][j - 1] == 'N' ||
+            board[i + 1][j + 2] == 'N' || board[i - 1][j + 2] == 'N' || board[i + 1][j - 2] == 'N' || board[i + 1][j - 2] == 'N')
+            return 0;
         // check down the king
         for (i = i_king_p1 + 1, j = j_king_p1; i < 8; i++)
             if (islower(board[i][j]))
@@ -735,6 +737,10 @@ int check_check(int p_turn)
         i = i_king_p2, j = j_king_p2;
         // check for pawns in front of the king
         if (board[i + 1][j + 1] == 'p' || board[i + 1][j - 1] == 'p')
+            return 0;
+        // check for knights around the king
+        if (board[i - 2][j + 1] == 'n' || board[i - 2][j - 1] == 'n' || board[i + 2][j + 1] == 'n' || board[i + 2][j - 1] == 'n' ||
+            board[i + 1][j + 2] == 'n' || board[i - 1][j + 2] == 'n' || board[i + 1][j - 2] == 'n' || board[i + 1][j - 2] == 'n')
             return 0;
         // check down the king
         for (i = i_king_p2 + 1, j = j_king_p2; i < 8; i++)
