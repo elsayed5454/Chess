@@ -8,7 +8,7 @@ char board[8][8] = {{'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}};
 char p1_dead[16], p2_dead[16];
 int p1_dead_c = 0, p2_dead_c = 0;
 char swap;
-int i, j, k, p_turn = 0;
+int i, j, k, p_turn = 0, i_king_p1 = 7, j_king_p1 = 4, i_king_p2 = 0, j_king_p2 = 4;
 COORD coord = {0, 0}; // sets coordinates to 0,0
 
 void gotoxy (int x, int y);
@@ -23,6 +23,7 @@ void bishop(int i1, int j1, int i2, int j2);
 void queen(int i1, int j1, int i2, int j2);
 void king(int i1, int j1, int i2, int j2);
 int check_road(int i1, int j1, int i2, int j2);
+int check_check(int p_turn);
 
 
 int main()
@@ -108,6 +109,8 @@ void check_move(char arr[8][8])
         print(board);
         if (p_turn % 2 == 0)
         {
+            if (!check_check(p_turn))
+                printf("Your king is in check, choose your move wisely\n");
             do
             {
                 printf("Player 1 move: ");
@@ -118,6 +121,8 @@ void check_move(char arr[8][8])
         }
         else
         {
+            if (!check_check(p_turn))
+                printf("Your king is in check, choose your move wisely\n");
             do
             {
                 printf("Player 2 move: ");
@@ -457,8 +462,10 @@ void king(int i1, int j1, int i2, int j2)
     // player 1 king
     if (p_turn % 2 == 0 && board[i1][j1] == 'k')
     {
+        // normal king move
         if ((abs(i1 - i2) == 1 || abs(j1 - j2) == 1) && !isalpha(board[i2][j2]))
         {
+            i_king_p1 = i2, j_king_p1 = j2;
             board[i2][j2] = board[i1][j1];
             if ((i1 + j1) % 2 != 0)
                 board[i1][j1] = ' ';
@@ -468,6 +475,7 @@ void king(int i1, int j1, int i2, int j2)
         // in case of capturing
         else if ((abs(i1 - i2) == 1 || abs(j1 - j2) == 1) && isupper(board[i2][j2]))
         {
+            i_king_p1 = i2, j_king_p1 = j2;
             p2_dead[p2_dead_c++] = board[i2][j2];
             board[i2][j2] = board[i1][j1];
             if ((i1 + j1) % 2 != 0)
@@ -481,8 +489,10 @@ void king(int i1, int j1, int i2, int j2)
     // player 2 king
     else if (p_turn % 2 == 1 && board[i1][j1] == 'K')
     {
+        // normal king move
         if ((abs(i1 - i2) == 1 || abs(j1 - j2) == 1) && !isalpha(board[i2][j2]))
         {
+            i_king_p2 = i2, j_king_p2 = j2;
             board[i2][j2] = board[i1][j1];
             if ((i1 + j1) % 2 != 0)
                 board[i1][j1] = ' ';
@@ -492,6 +502,7 @@ void king(int i1, int j1, int i2, int j2)
         // in case of capturing
         else if ((abs(i1 - i2) == 1 || abs(j1 - j2) == 1) && islower(board[i2][j2]))
         {
+            i_king_p2 = i2, j_king_p2 = j2;
             p1_dead[p1_dead_c++] = board[i2][j2];
             board[i2][j2] = board[i1][j1];
             if ((i1 + j1) % 2 != 0)
@@ -653,6 +664,127 @@ int check_road(int i1, int j1, int i2, int j2)
                         return 0;
                     return 1;
             }
+    }
+    return 1;
+}
+
+int check_check(int p_turn)
+{
+    // check player 1 king in check
+    if (p_turn % 2 == 0)
+    {
+        i = i_king_p1, j = j_king_p1;
+        // check for pawns in front of the king
+        if (board[i - 1][j + 1] == 'P' || board[i - 1][j - 1] == 'P')
+            return 0;
+        // check for knights around the king
+
+        // check down the king
+        for (i = i_king_p1 + 1, j = j_king_p1; i < 8; i++)
+            if (islower(board[i][j]))
+                break;
+            else if (board[i][j] == 'R' || board[i][j] == 'Q')
+                return 0;
+        // check up the king
+        for (i = i_king_p1 - 1, j = j_king_p1; i >= 0; i--)
+            if (islower(board[i][j]))
+                break;
+            else if (board[i][j] == 'R' || board[i][j] == 'Q')
+                return 0;
+        // check right the king
+        for (i = i_king_p1, j = j_king_p1 + 1; j < 8; j++)
+            if (islower(board[i][j]))
+                break;
+            else if (board[i][j] == 'R' || board[i][j] == 'Q')
+                return 0;
+        // check left the king
+        for (i = i_king_p1, j = j_king_p1 - 1; j >= 0; j--)
+            if (islower(board[i][j]))
+                break;
+            else if (board[i][j] == 'R' || board[i][j] == 'Q')
+                return 0;
+        // check upper right the king
+        for (i = i_king_p1 - 1, j = j_king_p1 + 1; i >= 0 && j < 8; i--, j++)
+            if (islower(board[i][j]))
+                break;
+            else if (board[i][j] == 'B' || board[i][j] == 'Q')
+                return 0;
+        // check lower left the king
+        for (i = i_king_p1 + 1, j = j_king_p1 - 1; i < 8 && j >= 0; i++, j--)
+            if (islower(board[i][j]))
+                break;
+            else if (board[i][j] == 'B' || board[i][j] == 'Q')
+                return 0;
+        // check upper left the king
+        for (i = i_king_p1 - 1, j = j_king_p1 - 1; i >= 0 && j >= 0; i--, j--)
+            if (islower(board[i][j]))
+                break;
+            else if (board[i][j] == 'B' || board[i][j] == 'Q')
+                return 0;
+        // check lower right the king
+        for (i = i_king_p1 + 1, j = j_king_p1 + 1; i < 8 && j < 8; i++, j++)
+            if (islower(board[i][j]))
+                break;
+            else if (board[i][j] == 'B' || board[i][j] == 'Q')
+                return 0;
+        return 1;
+    }
+    // check player 2 king in check
+    else if (p_turn % 2 == 1)
+    {
+        i = i_king_p2, j = j_king_p2;
+        // check for pawns in front of the king
+        if (board[i + 1][j + 1] == 'p' || board[i + 1][j - 1] == 'p')
+            return 0;
+        // check down the king
+        for (i = i_king_p2 + 1, j = j_king_p2; i < 8; i++)
+            if (isupper(board[i][j]))
+                break;
+            else if (board[i][j] == 'r' || board[i][j] == 'q')
+                return 0;
+        // check up the king
+        for (i = i_king_p2 - 1, j = j_king_p2; i >= 0; i--)
+            if (isupper(board[i][j]))
+                break;
+            else if (board[i][j] == 'r' || board[i][j] == 'q')
+                return 0;
+        // check right the king
+        for (i = i_king_p2, j = j_king_p2 + 1; j < 8; j++)
+            if (isupper(board[i][j]))
+                break;
+            else if (board[i][j] == 'r' || board[i][j] == 'q')
+                return 0;
+        // check left the king
+        for (i = i_king_p2, j = j_king_p2 - 1; j >= 0; j--)
+            if (isupper(board[i][j]))
+                break;
+            else if (board[i][j] == 'r' || board[i][j] == 'q')
+                return 0;
+        // check upper right the king
+        for (i = i_king_p2 - 1, j = j_king_p2 + 1; i >= 0 && j < 8; i--, j++)
+            if (isupper(board[i][j]))
+                break;
+            else if (board[i][j] == 'b' || board[i][j] == 'q')
+                return 0;
+        // check lower left the king
+        for (i = i_king_p2 + 1, j = j_king_p2 - 1; i < 8 && j >= 0; i++, j--)
+            if (isupper(board[i][j]))
+                break;
+            else if (board[i][j] == 'b' || board[i][j] == 'q')
+                return 0;
+        // check upper left the king
+        for (i = i_king_p2 - 1, j = j_king_p2 - 1; i >= 0 && j >= 0; i--, j--)
+            if (islower(board[i][j]))
+                break;
+            else if (board[i][j] == 'b' || board[i][j] == 'q')
+                return 0;
+        // check lower right the king
+        for (i = i_king_p2 + 1, j = j_king_p2 + 1; i < 8 && j < 8; i++, j++)
+            if (isupper(board[i][j]))
+                break;
+            else if (board[i][j] == 'b' || board[i][j] == 'q')
+                return 0;
+        return 1;
     }
     return 1;
 }
