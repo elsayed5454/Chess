@@ -1,0 +1,14 @@
+# depslib dependency file v1.0
+1544478261 source:e:\main\programming\college\chess\main.c
+	<ctype.h>
+	<stdio.h>
+	<stdlib.h>
+	<windows.h>
+
+1544745630 source:e:\main\programming\college\project\chess\main.c
+	<ctype.h>
+	<math.h>
+	<stdio.h>
+	<stdlib.h>
+	<windows.h>
+
