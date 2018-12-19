@@ -8,18 +8,22 @@ char board[8][8] = {{'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}};
 char p1_dead[16], p2_dead[16];
 int p1_dead_c = 0, p2_dead_c = 0;
 int i, j, k;
-int end_game = 0, valid_move, p_turn = 0, king_in_check = 0, i_king_p1 = 7, j_king_p1 = 4, i_king_p2 = 0, j_king_p2 = 4;
+int end_game = 0, valid_move, p_turn = 0, king_in_check = 0, i_king_p1 = 7, j_king_p1 = 4, i_king_p2 = 0, j_king_p2 = 4, checkmate = 0, stalemate = 0;
 COORD coord = {0, 0}; // sets coordinates to 0,0
 
 void gotoxy (int x, int y);
 void initialize_board();
 void print(char arr[8][8]);
 int is_move_valid(char p[]);
-int check_char(char p[]);
+int is_char_valid(char p[]);
 int the_move(int i1, int j1, int i2, int j2);
 int is_road_empty(int i1, int j1, int i2, int j2);
 int is_king_in_check(int p, int i_check, int j_check);
-void undo_swap(int i1, int j1, int i2, int j2);
+void swap(int i1, int j1, int i2, int j2);
+int is_checkmate(int i2, int j2);
+int king_can_run();
+int piece_save_king(int i1, int j1, int i_king, int j_king);
+int is_stalemate(int i2, int j2);
 
 void gotoxy (int x, int y)
 {
@@ -46,6 +50,8 @@ int main()
                 printf("Player 1 move: ");
                 scanf("%s", p1_move);
                 is_move_valid(p1_move);
+                if (end_game)
+                break;
             }
             while (!valid_move);
         }
@@ -59,11 +65,20 @@ int main()
                 printf("Player 2 move: ");
                 scanf("%s", p2_move);
                 is_move_valid(p2_move);
+                if (end_game)
+                break;
             }
             while (!valid_move);
         }
         p_turn++;
+        if (end_game)
+            break;
     }
+    print(board);
+    if (checkmate)
+        printf("Checkmate!!!!");
+    else
+        printf("stalemate!!!!");
     return 0;
 }
 
@@ -90,7 +105,7 @@ void initialize_board()
 int is_move_valid(char p[])
 {
     // check the characters
-    if (!check_char(p))
+    if (!is_char_valid(p))
     {
         valid_move = 0;
         return 0;
@@ -144,7 +159,6 @@ int is_move_valid(char p[])
         board[i1][j1] = ' ';
     else
         board[i1][j1] = '\xdb';
-
     // does the move removed the check ?
     if (king_in_check)
     {
@@ -155,7 +169,7 @@ int is_move_valid(char p[])
             else
             {
                 valid_move = 0;
-                undo_swap(i1, j1, i2, j2);
+                swap(i1, j1, i2, j2);
                 return 0;
             }
         }
@@ -166,11 +180,10 @@ int is_move_valid(char p[])
             else
             {
                 valid_move = 0;
-                undo_swap(i1, j1, i2, j2);
+                swap(i1, j1, i2, j2);
                 return 0;
             }
         }
-
     }
     // check if the king is in check
     if (p_turn % 2 == 0)
@@ -187,8 +200,22 @@ int is_move_valid(char p[])
         else
             king_in_check = 0;
     }
-
-
+    // does the game ended as checkmate ?
+    if (king_in_check && is_checkmate(i2, j2))
+    {
+        end_game = 1;
+        checkmate = 1;
+        p_turn--;
+        return 0;
+    }
+    // does the game ended as stalemate ?
+    if (is_stalemate(i2, j2))
+    {
+        end_game = 1;
+        stalemate = 1;
+        p_turn--;
+        return 0;
+    }
     valid_move = 1;
     return 0;
 }
@@ -222,7 +249,7 @@ void print(char arr[8][8])
     }
 }
 
-int check_char(char p[])
+int is_char_valid(char p[])
 {
     if (strlen(p) != 4)
         return 0;
@@ -582,9 +609,236 @@ int is_king_in_check(int p, int i_check, int j_check)
     return 0;
 }
 
-void undo_swap(int i1, int j1, int i2, int j2)
+void swap(int i1, int j1, int i2, int j2)
 {
     char tmp = board[i2][j2];
     board[i2][j2] = board[i1][j1];
     board[i1][j1] = tmp;
+}
+
+int is_checkmate(int i2, int j2)
+{
+    if (p_turn % 2 == 0)
+    {
+        if(king_can_run())
+            return 0;
+        // is there any pieces can help ?
+        if (piece_save_king(i2, j2, i_king_p2, j_king_p2) == 2)
+            return 0;
+    }
+    else
+        if(king_can_run())
+            return 0;
+        // is there any pieces can help ?
+        if (piece_save_king(i2, j2, i_king_p1, j_king_p1) == 2)
+            return 0;
+    return 1;
+}
+
+int piece_save_king(int i1, int j1, int i_king, int j_king)
+{
+    // n is the no of squares to check, i is the initial row to check, j is the initial column to check
+    int n, x = 0;
+    if ((board[i1][j1] == 'p' || board[i1][j1] == 'P') && is_king_in_check(p_turn, i1, j1))
+        x++;
+    else if ((board[i1][j1] == 'n' || board[i1][j1] == 'N') && is_king_in_check(p_turn, i1, j1))
+        x++;
+    // check the road for rooks
+    else if (board[i1][j1] == 'r' || board[i1][j1] == 'R')
+    {
+        // moving horizontally
+        if (j1 == j_king)
+        {
+            j = j1;
+            if (i1 > i_king)
+            {
+                i = i_king + 1;
+                n = abs(i1 - i_king) + i + 1;
+            }
+            else
+            {
+                i = i1;
+                n = abs(i1 - i_king) + i;
+            }
+            for (; i < n; i++)
+                if (is_king_in_check(p_turn, i, j))
+                    x++;
+        }
+        // moving vertically
+        else if (i1 == i_king)
+        {
+            i = i1;
+            if (j1 > j_king)
+            {
+                j = j_king + 1;
+                n = abs(j1 - j_king) + j + 1;
+            }
+            else
+            {
+                j = j1;
+                n = abs(j1 - j_king) + j;
+            }
+            for (; j < n; j++)
+                if (is_king_in_check(p_turn, i, j))
+                    x++;
+        }
+    }
+    // check the road for bishops
+    else if (board[i1][j1] == 'b' || board[i1][j1] == 'B')
+    {
+        // from upper left to lower right
+        if((i_king > i1 && j_king > j1) || (i_king < i1 && j_king < j1))
+        {
+            if (i1 > i_king)
+            {
+                i = i_king + 1;
+                j = j_king + 1;
+                n = abs(i_king - i1) + i;
+            }
+            else
+            {
+                i = i1;
+                j = j1;
+                n = abs(i_king - i1) + i + 1;
+            }
+            for(; i < n; i++, j++)
+                if (is_king_in_check(p_turn, i, j))
+                    x++;
+        }
+        // from upper right to lower left
+        else if ((i1 > i_king && j1 < j_king) || (i1 < i_king && j1 > j_king))
+            {
+                if (i1 > i_king)
+                {
+                    i = i_king + 1;
+                    j = j_king - 1;
+                    n = abs(i_king - i1) + i;
+                }
+                else
+                {
+                    i = i1;
+                    j = j1;
+                    n = abs(i_king - i1) + i + 1;
+                }
+                for(; i < n; i++, j--)
+                    if (is_king_in_check(p_turn, i, j))
+                        x++;
+            }
+    }
+    // check the road for queens
+    else if (board[i1][j1] == 'q' || board[i1][j1] == 'Q')
+    {
+        // moving horizontally
+        if (j1 == j_king)
+        {
+            j = j1;
+            if (i1 > i_king)
+            {
+                i = i_king + 1;
+                n = abs(i1 - i_king) + i + 1;
+            }
+            else
+            {
+                i = i1;
+                n = abs(i1 - i_king) + i;
+            }
+            for (; i < n; i++)
+                if (is_king_in_check(p_turn, i, j))
+                    x++;
+        }
+        // moving vertically
+        else if (i1 == i_king)
+        {
+            i = i1;
+            if (j1 > j_king)
+            {
+                j = j_king + 1;
+                n = abs(j1 - j_king) + j + 1;
+            }
+            else
+            {
+                j = j1;
+                n = abs(j1 - j_king) + j;
+            }
+            for (; j < n; j++)
+                if (is_king_in_check(p_turn, i, j))
+                    x++;
+        }
+        // from upper left to lower right
+        else if ((i_king > i1 && j_king > j1) || (i_king < i1 && j_king < j1))
+        {
+            if (i1 > i_king)
+            {
+                i = i_king + 1;
+                j = j_king + 1;
+                n = abs(i_king - i1) + i;
+            }
+            else
+            {
+                i = i1;
+                j = j1;
+                n = abs(i_king - i1) + i + 1;
+            }
+            for(; i < n; i++, j++)
+                if (is_king_in_check(p_turn, i, j))
+                    x++;
+        }
+        // from upper right to lower left
+        else if ((i1 > i_king && j1 < j_king) || (i1 < i_king && j1 > j_king))
+            {
+                if (i1 > i_king)
+                {
+                    i = i_king + 1;
+                    j = j_king - 1;
+                    n = abs(i_king - i1) + i;
+                }
+                else
+                {
+                    i = i1;
+                    j = j1;
+                    n = abs(i_king - i1) + i + 1;
+                }
+                for(; i < n; i++, j--)
+                    if (is_king_in_check(p_turn, i, j))
+                        x++;
+            }
+    }
+    if (!x)
+        return 0;
+    else
+        return 2;
+}
+
+int king_can_run()
+{
+    // is there safe places around the king ?
+    if (p_turn % 2 == 0)
+    {
+        for (i = i_king_p2 - 1; i < i_king_p2 + 2; i++)
+            for (j = j_king_p2 - 1; j < j_king_p2 + 2; j++)
+                if (!is_king_in_check(p_turn + 1, i, j) && !isupper(board[i][j]) && i < 8 && i >= 0 && j < 8 && j >= 0)
+                    return 1;
+    }
+    else
+    {
+        for (i = i_king_p1 - 1; i < i_king_p1 + 2; i++)
+                for (j = j_king_p1 - 1; j < j_king_p1 + 2; j++)
+                    if (!is_king_in_check(p_turn + 1, i, j) && !islower(board[i][j]) && i < 8 && i >= 0 && j < 8 && j >= 0)
+                        return 1;
+    }
+
+    return 0;
+}
+
+int is_stalemate(int i2, int j2)
+{
+    if (p_turn % 2 == 0)
+    {
+        if(!king_can_run() && piece_save_king(i2, j2, i_king_p2, j_king_p2) != 2)
+            return 1;
+    }
+    else
+        if(!king_can_run() && piece_save_king(i2, j2, i_king_p1, j_king_p1) != 2)
+            return 1;
+    return 0;
 }
