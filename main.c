@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <windows.h>
+#include <string.h>
 
 char board[8][8] = {{'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}};
 char p1_dead[16], p2_dead[16];
@@ -225,15 +225,15 @@ int is_move_valid(char p[])
             p_turn--;
             return 0;
         }
-
+    // no capture happened and the move is valid
     found_dead = 0;
     valid_move = 1;
-
     return 0;
 }
 
 void print(char arr[8][8])
 {
+    // print the new board
     system("cls");
     printf("     A    B    C    D    E    F    G    H  \n");
     printf("   -----------------------------------------\n");
@@ -309,6 +309,7 @@ int the_move(int i1, int j1, int i2, int j2)
                 return 0;
         }
     }
+    // rooks move
     else if (board[i1][j1] == 'r' || board[i1][j1] == 'R')
     {
         if ((i1 == i2 || j1 == j2))
@@ -316,6 +317,7 @@ int the_move(int i1, int j1, int i2, int j2)
         else
             return 0;
     }
+    // knights move
     else if (board[i1][j1] == 'n' || board[i1][j1] == 'N')
     {
         if (((abs(i1 - i2) == 1 && abs(j1 - j2) == 2) || (abs(i1 - i2) == 2 && abs(j1 - j2) == 1)))
@@ -323,6 +325,7 @@ int the_move(int i1, int j1, int i2, int j2)
         else
             return 0;
     }
+    // bishops move
     else if (board[i1][j1] == 'b' || board[i1][j1] == 'B')
     {
         if (abs(i1 - i2) == abs(j1 - j2) || abs(i1 + i2) == abs(j1 + j2))
@@ -330,6 +333,7 @@ int the_move(int i1, int j1, int i2, int j2)
         else
             return 0;
     }
+    // queens move
     else if (board[i1][j1] == 'q' || board[i1][j1] == 'Q')
     {
         if (((i1 == i2 || j1 == j2) || abs(i1 - i2) == abs(j1 - j2)) || abs(i1 + i2) == abs(j1 + j2))
@@ -337,6 +341,7 @@ int the_move(int i1, int j1, int i2, int j2)
         else
             return 0;
     }
+    // kings move
     else if ((board[i1][j1] == 'k' || board[i1][j1] == 'K') && !is_king_in_check(p_turn, i2, j2))
     {
         if ((abs(i1 - i2) == 1 && abs(j1 - j2) == 1) || (i1 == i2 && abs(j1 - j2) == 1) || (abs(i1 - i2) == 1 && j1 == j2))
@@ -614,6 +619,7 @@ int is_king_in_check(int p, int i_check, int j_check)
 
 void swap(int i1, int j1, int i2, int j2)
 {
+    // swap 2 pieces
     char tmp = board[i2][j2];
     board[i2][j2] = board[i1][j1];
     board[i1][j1] = tmp;
@@ -624,10 +630,10 @@ int is_checkmate()
     // check player 2 king after player 1 move
     if (p_turn % 2 == 0)
     {
-        // is there any pieces can help ?
         if(king_can_run() || piece_save_king())
             return 0;
     }
+    // repeat for player 1 king
     else
     {
         if(king_can_run() || piece_save_king())
@@ -638,6 +644,7 @@ int is_checkmate()
 
 int piece_save_king()
 {
+    // check all possible moves for all player 2 pieces which may save his king
     int m, n, k, l;
     if (p_turn % 2 == 0)
     {
@@ -658,6 +665,7 @@ int piece_save_king()
                                 }
                             }
     }
+    // repeat for player 1 pieces
     else
     {
         for (m = 0; m < 8; m++)
@@ -683,7 +691,7 @@ int piece_save_king()
 int king_can_run()
 {
     int o, p;
-    // is there safe places around the king ?
+    // is there safe and empty places around player 2 king ?
     if (p_turn % 2 == 0)
     {
         for (o = i_king_p2 - 1; o < i_king_p2 + 2; o++)
@@ -695,6 +703,7 @@ int king_can_run()
                     return 1;
             }
     }
+    // repeat for player 1 king
     else
     {
         for (o = i_king_p1 - 1; o < i_king_p1 + 2; o++)
