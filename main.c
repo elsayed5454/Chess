@@ -6,8 +6,10 @@
 
 char board[8][8] = {{'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}};
 char p1_dead[16], p2_dead[16];
-int p1_dead_c = 0, p2_dead_c = 0, found_dead = 0;
-int i, j, k;
+int p1_dead_c = 0, p2_dead_c = 0, found_dead = 0, promotion_found = 0;
+char save[269][8][8];
+char save_dead1[269][16], save_dead2[269][16];
+int i, j, k, cout = -1;
 int end_game = 0, valid_move, p_turn = 0, king_in_check = 0, i_king_p1 = 7, j_king_p1 = 4, i_king_p2 = 0, j_king_p2 = 4, checkmate = 0, stalemate = 0;
 
 void initialize_board();
@@ -21,10 +23,15 @@ void swap(int i1, int j1, int i2, int j2);
 int is_checkmate();
 int king_can_run();
 int piece_save_king();
+void promotion(int i1, int j1, int i2, int j2, char to[]);
+void save_places();
+void undo();
+void redo();
 
 int main()
 {
     initialize_board();
+    save_places();
     char p1_move[5], p2_move[5];
     while (!end_game)
     {
@@ -41,7 +48,17 @@ int main()
                 scanf("%s", p1_move);
                 is_move_valid(p1_move);
                 if (end_game)
-                break;
+                    break;
+                if (p1_move[0] == 'U' && strlen(p1_move) == 1 && cout > 0)
+                {
+                    undo();
+                    break;
+                }
+                else if (p1_move[0] == 'R' && strlen(p1_move) == 1 && cout >= 0 && (save[cout + 1][0][0] == '\xdb' || isalpha(save[cout + 1][0][0])))
+                {
+                    redo();
+                    break;
+                }
             }
             while (!valid_move);
         }
@@ -56,7 +73,17 @@ int main()
                 scanf("%s", p2_move);
                 is_move_valid(p2_move);
                 if (end_game)
-                break;
+                    break;
+                if (p2_move[0] == 'U' && strlen(p2_move) == 1 && cout > 0)
+                {
+                    undo();
+                    break;
+                }
+                else if (p2_move[0] == 'R' && strlen(p2_move) == 1 && cout >= 0 && (save[cout + 1][0][0] == '\xdb' || isalpha(save[cout + 1][0][0])))
+                {
+                    redo();
+                    break;
+                }
             }
             while (!valid_move);
         }
@@ -150,6 +177,12 @@ int is_move_valid(char p[])
         board[i1][j1] = ' ';
     else
         board[i1][j1] = '\xdb';
+    // in case of promotion
+    if (promotion_found)
+    {
+        promotion(i1, j1, i2, j2, p);
+        promotion_found = 0;
+    }
     // does the move removed the check ?
     if (king_in_check)
     {
@@ -213,7 +246,6 @@ int is_move_valid(char p[])
         {
             end_game = 1;
             checkmate = 1;
-            p_turn--;
             return 0;
         }
     // does the game ended as stalemate ?
@@ -222,12 +254,12 @@ int is_move_valid(char p[])
         {
             end_game = 1;
             stalemate = 1;
-            p_turn--;
             return 0;
         }
-    // no capture happened and the move is valid
+    // no capture happened, the move is valid and save board
     found_dead = 0;
     valid_move = 1;
+    save_places();
     return 0;
 }
 
@@ -235,7 +267,7 @@ void print(char arr[8][8])
 {
     // print the new board
     system("cls");
-    printf("     A    B    C    D    E    F    G    H  \n");
+    printf("     A    B    C    D    E    F    G    H             No of moves = %i\n", p_turn);
     printf("   -----------------------------------------\n");
     for (i = 0; i < 8; i++)
         {
@@ -251,23 +283,32 @@ void print(char arr[8][8])
                 for (k = 0;k < 8; k++)
                     printf("%c ",p2_dead[k]);
             }
-            else if(i == 7)
+            else if (i == 3)
+                printf("          Type the letter 'U' to undo the move");
+            else if (i == 4)
+                printf("          Type the letter 'R' to redo the move");
+            else if (i == 7)
             {
                 printf("          Player 1 Dead Pieces: ");
                 for (k = 0; k < 8; k++)
                     printf("%c ",p1_dead[k]);
-         }
-        printf("\n");
-    }
+            }
+            printf("\n");
+        }
 }
 
 int is_char_valid(char p[])
 {
-    if (strlen(p) != 4)
-        return 0;
-    else if (p[0] < 'A' || p[0] > 'H' || p[2] < 'A' || p[2] > 'H')
+    if (p[0] < 'A' || p[0] > 'H' || p[2] < 'A' || p[2] > 'H')
         return 0;
     else if (p[1] < '1' || p[1] > '8' || p[3] < '1' || p[3] > '8')
+        return 0;
+    else if (strlen(p) == 5 && (p[4] == 'Q' || p[4] == 'N' || p[4] == 'R' || p[4] == 'B'))
+    {
+        promotion_found = 1;
+        return 1;
+    }
+    else if (strlen(p) != 4)
         return 0;
     else
         return 1;
@@ -518,52 +559,52 @@ int is_king_in_check(int p, int i_check, int j_check)
             return 1;
         // check down the king
         for (i = i_check + 1, j = j_check; i < 8; i++)
-            if (islower(board[i][j]))
-                break;
-            else if (board[i][j] == 'R' || board[i][j] == 'Q')
+            if (board[i][j] == 'R' || board[i][j] == 'Q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         // check up the king
         for (i = i_check - 1, j = j_check; i >= 0; i--)
-            if (islower(board[i][j]))
-                break;
-            else if (board[i][j] == 'R' || board[i][j] == 'Q')
+            if (board[i][j] == 'R' || board[i][j] == 'Q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         // check right the king
         for (i = i_check, j = j_check + 1; j < 8; j++)
-            if (islower(board[i][j]))
-                break;
-            else if (board[i][j] == 'R' || board[i][j] == 'Q')
+            if (board[i][j] == 'R' || board[i][j] == 'Q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         // check left the king
         for (i = i_check, j = j_check - 1; j >= 0; j--)
-            if (islower(board[i][j]))
+            if (board[i][j] == 'R' || board[i][j] == 'Q')
+                return 1;
+            else if (isalpha(board[i][j]))
                 break;
-            else if (board[i][j] == 'R' || board[i][j] == 'Q')
-            return 1;
         // check upper right the king
         for (i = i_check - 1, j = j_check + 1; i >= 0 && j < 8; i--, j++)
-            if (islower(board[i][j]))
-                break;
-            else if (board[i][j] == 'B' || board[i][j] == 'Q')
+            if (board[i][j] == 'B' || board[i][j] == 'Q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         // check lower left the king
         for (i = i_check + 1, j = j_check - 1; i < 8 && j >= 0; i++, j--)
-            if (islower(board[i][j]))
-                break;
-            else if (board[i][j] == 'B' || board[i][j] == 'Q')
+            if (board[i][j] == 'B' || board[i][j] == 'Q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         // check upper left the king
         for (i = i_check - 1, j = j_check - 1; i >= 0 && j >= 0; i--, j--)
-            if (islower(board[i][j]))
-                break;
-            else if (board[i][j] == 'B' || board[i][j] == 'Q')
+            if (board[i][j] == 'B' || board[i][j] == 'Q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         // check lower right the king
         for (i = i_check + 1, j = j_check + 1; i < 8 && j < 8; i++, j++)
-            if (islower(board[i][j]))
-                break;
-            else if (board[i][j] == 'B' || board[i][j] == 'Q')
+            if (board[i][j] == 'B' || board[i][j] == 'Q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
     }
     // repeat for player 2
     else
@@ -574,45 +615,45 @@ int is_king_in_check(int p, int i_check, int j_check)
             board[i + 1][j + 2] == 'n' || board[i - 1][j + 2] == 'n' || board[i + 1][j - 2] == 'n' || board[i - 1][j - 2] == 'n')
             return 1;
         for (i = i_check + 1, j = j_check; i < 8; i++)
-            if (isupper(board[i][j]))
-                break;
-            else if (board[i][j] == 'r' || board[i][j] == 'q')
+            if (board[i][j] == 'r' || board[i][j] == 'q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         for (i = i_check - 1, j = j_check; i >= 0; i--)
-            if (isupper(board[i][j]))
-                break;
-            else if (board[i][j] == 'r' || board[i][j] == 'q')
+            if (board[i][j] == 'r' || board[i][j] == 'q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         for (i = i_check, j = j_check + 1; j < 8; j++)
-            if (isupper(board[i][j]))
-                break;
-            else if (board[i][j] == 'r' || board[i][j] == 'q')
+            if (board[i][j] == 'r' || board[i][j] == 'q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         for (i = i_check, j = j_check - 1; j >= 0; j--)
-            if (isupper(board[i][j]))
-                break;
-            else if (board[i][j] == 'r' || board[i][j] == 'q')
+            if (board[i][j] == 'r' || board[i][j] == 'q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         for (i = i_check - 1, j = j_check + 1; i >= 0 && j < 8; i--, j++)
-            if (isupper(board[i][j]))
-                break;
-            else if (board[i][j] == 'b' || board[i][j] == 'q')
+            if (board[i][j] == 'b' || board[i][j] == 'q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         for (i = i_check + 1, j = j_check - 1; i < 8 && j >= 0; i++, j--)
-            if (isupper(board[i][j]))
-                break;
-            else if (board[i][j] == 'b' || board[i][j] == 'q')
+            if (board[i][j] == 'b' || board[i][j] == 'q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         for (i = i_check - 1, j = j_check - 1; i >= 0 && j >= 0; i--, j--)
-            if (isupper(board[i][j]))
-                break;
-            else if (board[i][j] == 'b' || board[i][j] == 'q')
+            if (board[i][j] == 'b' || board[i][j] == 'q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
         for (i = i_check + 1, j = j_check + 1; i < 8 && j < 8; i++, j++)
-            if (isupper(board[i][j]))
-                break;
-            else if (board[i][j] == 'b' || board[i][j] == 'q')
+            if (board[i][j] == 'b' || board[i][j] == 'q')
                 return 1;
+            else if (isalpha(board[i][j]))
+                break;
     }
     return 0;
 }
@@ -646,6 +687,7 @@ int piece_save_king()
 {
     // check all possible moves for all player 2 pieces which may save his king
     int m, n, k, l;
+    char tmp;
     if (p_turn % 2 == 0)
     {
         for (m = 0; m < 8; m++)
@@ -655,12 +697,18 @@ int piece_save_king()
                         for (l = 0; l < 8; l++)
                             if (!isupper(board[k][l]) && the_move(m, n, k, l) && is_road_empty(m, n, k, l))
                             {
+                                tmp = board[k][l];
+                                board[k][l] = '\0';
                                 swap(m, n, k, l);
                                 if (is_king_in_check(p_turn + 1, i_king_p2, j_king_p2))
+                                {
                                     swap(m, n, k, l);
+                                    board[k][l] = tmp;
+                                }
                                 else
                                 {
                                     swap(m, n, k, l);
+                                    board[k][l] = tmp;
                                     return 1;
                                 }
                             }
@@ -675,12 +723,18 @@ int piece_save_king()
                         for (l = 0; l < 8; l++)
                             if (!islower(board[k][l]) && the_move(m, n, k, l) && is_road_empty(m, n, k, l))
                             {
+                                tmp = board[k][l];
+                                board[k][l] = '\0';
                                 swap(m, n, k, l);
-                                if (is_king_in_check(p_turn + 1, i_king_p2, j_king_p2))
+                                if (is_king_in_check(p_turn + 1, i_king_p1, j_king_p1))
+                                {
                                     swap(m, n, k, l);
+                                    board[k][l] = tmp;
+                                }
                                 else
                                 {
                                     swap(m, n, k, l);
+                                    board[k][l] = tmp;
                                     return 1;
                                 }
                             }
@@ -718,3 +772,77 @@ int king_can_run()
     return 0;
 }
 
+void promotion(int i1, int j1, int i2, int j2, char to[])
+{
+    if (p_turn % 2 == 0)
+    {
+        if (i1 == 1 && i2 == 0 && board[i2][j2] == 'p')
+        {
+            if (to[4] == 'Q')
+                board[i2][j2] = 'q';
+            else if (to[4] == 'N')
+                board[i2][j2] = 'n';
+            else if (to[4] == 'R')
+                board[i2][j2] = 'r';
+            else if (to[4] == 'B')
+                board[i2][j2] = 'b';
+        }
+    }
+    else
+        if (i1 == 6 && i2 == 7 && board[i2][j2] == 'P')
+        {
+            if (to[4] == 'Q')
+                board[i2][j2] = 'Q';
+            else if (to[4] == 'N')
+                board[i2][j2] = 'N';
+            else if (to[4] == 'R')
+                board[i2][j2] = 'R';
+            else if (to[4] == 'B')
+                board[i2][j2] = 'B';
+        }
+}
+
+void save_places()
+{
+    cout++;
+    // save all board places
+    for (i = 0; i < 8; i++)
+        for (j = 0; j < 8; j++)
+            save[cout][i][j] = board[i][j];
+    // save dead pieces of player 1
+    for (i = 0; i < 16; i++)
+        save_dead1[cout][i] = p1_dead[i];
+    // repeat for player 2
+    for (i = 0; i < 16; i++)
+        save_dead2[cout][i] = p2_dead[i];
+}
+
+void undo()
+{
+    // undo the last move
+    cout--;
+    p_turn -= 2;
+    // put all places last turn places
+    for (i = 0; i < 8; i++)
+        for (j = 0; j < 8; j++)
+            board[i][j] = save[cout][i][j];
+    // put dead pieces of player 1
+    for(i = 0; i < 16; i++)
+        p1_dead[i] = save_dead1[cout][i];
+    // repeat for player 2
+    for(i = 0; i < 16; i++)
+        p2_dead[i] = save_dead2[cout][i];
+}
+
+void redo()
+{
+    // redo the last move with the same algorithm
+    cout++;
+    for (i = 0; i < 8; i++)
+        for (j = 0; j < 8; j++)
+            board[i][j] = save[cout][i][j];
+    for(i = 0; i < 16; i++)
+        p1_dead[i] = save_dead1[cout][i];
+    for(i = 0; i < 16; i++)
+        p2_dead[i] = save_dead2[cout][i];
+}
