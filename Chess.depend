@@ -12,7 +12,13 @@
 	<stdlib.h>
 	<windows.h>
 
-1545659646 source:e:\main\programming\github\chess\main.c
+1545678941 source:e:\main\programming\github\chess\main.c
+	"Chesslib.h"
+
+1545677598 source:e:\main\programming\github\chess\chesslib.c
+	"Chesslib.h"
+
+1545678102 e:\main\programming\github\chess\chesslib.h
 	<ctype.h>
 	<math.h>
 	<stdio.h>
