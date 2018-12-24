@@ -7,8 +7,8 @@
 char board[8][8] = {{'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}};
 char p1_dead[16], p2_dead[16];
 int p1_dead_c = 0, p2_dead_c = 0, found_dead = 0, promotion_found = 0;
-char save[269][8][8];
-char save_dead1[269][16], save_dead2[269][16];
+char save[256][8][8];
+char save_dead1[256][16], save_dead2[256][16];
 int i, j, k, cout = -1;
 int end_game = 0, valid_move, p_turn = 0, king_in_check = 0, i_king_p1 = 7, j_king_p1 = 4, i_king_p2 = 0, j_king_p2 = 4, checkmate = 0, stalemate = 0;
 
@@ -27,6 +27,8 @@ void promotion(int i1, int j1, int i2, int j2, char to[]);
 void save_places();
 void undo();
 void redo();
+void save_game();
+int load_game();
 
 int main()
 {
@@ -59,6 +61,21 @@ int main()
                     redo();
                     break;
                 }
+                else if (p1_move[0] == 'S' && strlen(p1_move) == 1)
+                {
+                    save_game();
+                    p_turn--;
+                    break;
+                }
+                else if (p1_move[0] == 'L' && strlen(p1_move) == 1)
+                {
+                    if (!load_game())
+                        printf("Error in SAVEGAME.txt file \n");
+                    else
+                        load_game();
+                    p_turn--;
+                    break;
+                }
             }
             while (!valid_move);
         }
@@ -82,6 +99,21 @@ int main()
                 else if (p2_move[0] == 'R' && strlen(p2_move) == 1 && cout >= 0 && (save[cout + 1][0][0] == '\xdb' || isalpha(save[cout + 1][0][0])))
                 {
                     redo();
+                    break;
+                }
+                else if (p2_move[0] == 'S' && strlen(p2_move) == 1)
+                {
+                    save_game();
+                    p_turn--;
+                    break;
+                }
+                else if (p2_move[0] == 'L' && strlen(p2_move) == 1)
+                {
+                    if (!load_game())
+                        printf("Error in SAVEGAME.txt file \n");
+                    else
+                        load_game();
+                    p_turn--;
                     break;
                 }
             }
@@ -283,10 +315,14 @@ void print(char arr[8][8])
                 for (k = 0;k < 8; k++)
                     printf("%c ",p2_dead[k]);
             }
-            else if (i == 3)
+            else if (i == 2)
                 printf("          Type the letter 'U' to undo the move");
-            else if (i == 4)
+            else if (i == 3)
                 printf("          Type the letter 'R' to redo the move");
+            else if (i == 4)
+                printf("          Type the letter 'S' to save game");
+            else if (i == 5)
+                printf("          Type the letter 'L' to load previous game");
             else if (i == 7)
             {
                 printf("          Player 1 Dead Pieces: ");
@@ -369,7 +405,7 @@ int the_move(int i1, int j1, int i2, int j2)
     // bishops move
     else if (board[i1][j1] == 'b' || board[i1][j1] == 'B')
     {
-        if (abs(i1 - i2) == abs(j1 - j2) || abs(i1 + i2) == abs(j1 + j2))
+        if (abs(i1 - i2) == abs(j1 - j2))
             return 1;
         else
             return 0;
@@ -377,7 +413,7 @@ int the_move(int i1, int j1, int i2, int j2)
     // queens move
     else if (board[i1][j1] == 'q' || board[i1][j1] == 'Q')
     {
-        if (((i1 == i2 || j1 == j2) || abs(i1 - i2) == abs(j1 - j2)) || abs(i1 + i2) == abs(j1 + j2))
+        if ((i1 == i2 || j1 == j2) || abs(i1 - i2) == abs(j1 - j2))
             return 1;
         else
             return 0;
@@ -832,6 +868,21 @@ void undo()
     // repeat for player 2
     for(i = 0; i < 16; i++)
         p2_dead[i] = save_dead2[cout][i];
+    // check if the king is in check
+    if (p_turn % 2 == 0)
+    {
+        if(is_king_in_check(p_turn + 1, i_king_p2, j_king_p2))
+            king_in_check = 1;
+        else
+            king_in_check = 0;
+    }
+    else
+    {
+        if(is_king_in_check(p_turn + 1, i_king_p1, j_king_p1))
+            king_in_check = 1;
+        else
+            king_in_check = 0;
+    }
 }
 
 void redo()
@@ -845,4 +896,93 @@ void redo()
         p1_dead[i] = save_dead1[cout][i];
     for(i = 0; i < 16; i++)
         p2_dead[i] = save_dead2[cout][i];
+    // check if the king is in check
+    if (p_turn % 2 == 0)
+    {
+        if(is_king_in_check(p_turn + 1, i_king_p2, j_king_p2))
+            king_in_check = 1;
+        else
+            king_in_check = 0;
+    }
+    else
+    {
+        if(is_king_in_check(p_turn + 1, i_king_p1, j_king_p1))
+            king_in_check = 1;
+        else
+            king_in_check = 0;
+    }
+}
+
+void save_game()
+{
+    FILE *fptr = fopen("SAVEGAME.txt", "w");
+    fputc(cout, fptr);
+    fputc(p_turn, fptr);
+    fputc(p1_dead_c, fptr);
+    fputc(p2_dead_c, fptr);
+    fputc(found_dead, fptr);
+    fputc(king_in_check, fptr);
+    for (k = 0; k < cout + 1; k++)
+        for (i = 0; i < 8; i++)
+            for (j = 0; j < 8; j++)
+                fputc(save[k][i][j], fptr);
+    for (k = 0; k < cout + 1; k++)
+        for (i = 0; i < 16; i++)
+            fputc(save_dead1[k][i], fptr);
+    for (k = 0; k < cout + 1; k++)
+        for (i = 0; i < 16; i++)
+            fputc(save_dead2[k][i], fptr);
+    fclose(fptr);
+}
+
+int load_game()
+{
+    FILE *fptr = fopen("SAVEGAME.txt", "r");
+    // check the file
+    if (fptr == NULL)
+        return 0;
+    // load variables
+    cout = fgetc(fptr);
+    p_turn = fgetc(fptr);
+    p1_dead_c = fgetc(fptr);
+    p2_dead_c = fgetc(fptr);
+    found_dead = fgetc(fptr);
+    king_in_check = fgetc(fptr);
+    // load save
+    k = 0;
+    while (k != cout + 1)
+    {
+        for (i = 0; i < 8; i++)
+            for (j = 0; j < 8; j++)
+                save[k][i][j] = fgetc(fptr);
+        k++;
+    }
+    // load save for player 1 dead pieces
+    k = 0;
+    while (k != cout + 1)
+    {
+        for (i = 0; i < 16; i++)
+            save_dead1[k][i] = fgetc(fptr);
+        k++;
+    }
+    // repeat for player 2
+    k = 0;
+    while (k != cout + 1)
+    {
+        for (i = 0; i < 16; i++)
+            save_dead2[k][i] = fgetc(fptr);
+        k++;
+    }
+    fclose(fptr);
+    // put all places last turn places
+    for (i = 0; i < 8; i++)
+        for (j = 0; j < 8; j++)
+            board[i][j] = save[cout][i][j];
+    // put dead pieces of player 1
+    for(i = 0; i < 16; i++)
+        p1_dead[i] = save_dead1[cout][i];
+    // repeat for player 2
+    for(i = 0; i < 16; i++)
+        p2_dead[i] = save_dead2[cout][i];
+    return 1;
 }
